@@ -65,6 +65,8 @@ func main() {
 	for i := 0; i < cap(oc); i++ {
 		fmt.Println(<-oc)
 	}
+
+	fmt.Println("Done")
 }
 
 func runCmdTimeout(cmd *exec.Cmd, timeout time.Duration) (ok bool) {
