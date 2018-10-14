@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,12 +10,14 @@ import (
 	"time"
 )
 
-type file struct {
+// OvpnFile is the openvpn file struct
+type OvpnFile struct {
 	path string
 	name string
 }
 
-type output struct {
+// CmdOutput Command output struct
+type CmdOutput struct {
 	data string
 	err  error
 }
@@ -41,19 +44,24 @@ func main() {
 	// fmt.Println(ok)
 
 	bin = "/usr/local/Cellar/openvpn/2.4.6/sbin/openvpn"
-	sfolder = "/Users/qifan/Desktop/ProtonVPN config/ProtonVPN_server_configs_UDP"
+	sfolder = "/Users/qifan/vpngate_config/20181013 154623"
+	tfolder = "/Users/qifan/vpngate_config/20181013 154623/validated"
 	pwd = "/Users/qifan/pass"
-	pflag = true
+	pflag = false
 	timeout = time.Duration(15)
-	thread = 20
+	thread = 10
+
+	cleanFolder()
 
 	fl := getFiles(sfolder)
 	size := len(fl)
-	ic := make(chan *exec.Cmd, size)
-	oc := make(chan bool, size)
+
+	ic := make(chan *OvpnFile, size)
+	oc := make(chan *OvpnFile, size)
 
 	for _, f := range fl {
-		ic <- composeCmd(f.path)
+		fmt.Println(f.name)
+		ic <- &f
 	}
 
 	close(ic)
@@ -63,17 +71,54 @@ func main() {
 	}
 
 	for i := 0; i < cap(oc); i++ {
-		fmt.Println(<-oc)
+		o := <-oc
+		fmt.Println(o.name)
+		o.copy()
 	}
 
 	fmt.Println("Done")
 }
 
+func cleanFolder() {
+	os.RemoveAll(tfolder)
+	os.Mkdir(tfolder, os.ModeDir)
+}
+
+func getFiles(folder string) (fl []OvpnFile) {
+	var wf filepath.WalkFunc
+	wf = func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			n := strings.Split(info.Name(), ".")
+			if n[cap(n)-1] == "ovpn" {
+				fl = append(fl, OvpnFile{path, info.Name()})
+			}
+		}
+		return nil
+	}
+	filepath.Walk(folder, wf)
+	return
+}
+
+func (of OvpnFile) composeCmd() (cmd *exec.Cmd) {
+	fmt.Println(of.path)
+	if pflag {
+		cmd = exec.Command(bin, op1, of.path, op2, pwd)
+	} else {
+		cmd = exec.Command(bin, of.path)
+	}
+	return
+}
+
+func (of OvpnFile) copy() {
+	d, _ := ioutil.ReadFile(of.path)
+	ioutil.WriteFile(filepath.Join(tfolder, of.name), d, 0644)
+}
+
 func runCmdTimeout(cmd *exec.Cmd, timeout time.Duration) (ok bool) {
-	cOutput := make(chan output)
+	cOutput := make(chan CmdOutput)
 	go func() {
 		o, e := cmd.Output()
-		cOutput <- output{string(o), e}
+		cOutput <- CmdOutput{string(o), e}
 	}()
 
 	select {
@@ -84,35 +129,17 @@ func runCmdTimeout(cmd *exec.Cmd, timeout time.Duration) (ok bool) {
 		cmd.Process.Kill()
 		ok = false
 	}
+	fmt.Println(ok)
 	return
 }
 
-func getFiles(folder string) (fl []file) {
-	var wf filepath.WalkFunc
-	wf = func(path string, info os.FileInfo, err error) error {
-		if !info.IsDir() {
-			n := strings.Split(info.Name(), ".")
-			if n[cap(n)-1] == "ovpn" {
-				fl = append(fl, file{path, info.Name()})
-			}
-		}
-		return nil
-	}
-	filepath.Walk(folder, wf)
-	return
-}
-
-func composeCmd(file string) (cmd *exec.Cmd) {
-	if pflag {
-		cmd = exec.Command(bin, op1, file, op2, pwd)
-	} else {
-		cmd = exec.Command(bin, file)
-	}
-	return
-}
-
-func process(inputc <-chan *exec.Cmd, outputc chan<- bool) {
+func process(inputc <-chan *OvpnFile, outputc chan<- *OvpnFile) {
 	for i := range inputc {
-		outputc <- runCmdTimeout(i, timeout)
+		//outputc <- runCmdTimeout(i, timeout)
+		cmd := i.composeCmd()
+		ok := runCmdTimeout(cmd, timeout)
+		if ok {
+			outputc <- i
+		}
 	}
 }
