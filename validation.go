@@ -16,6 +16,12 @@ type OvpnFile struct {
 	name string
 }
 
+// OvpnFileOutput is the openvpn file output struct
+type OvpnFileOutput struct {
+	ok    bool
+	ofile OvpnFile
+}
+
 // CmdOutput Command output struct
 type CmdOutput struct {
 	data string
@@ -35,17 +41,9 @@ var thread int
 
 func main() {
 
-	// ovpnBin := "/usr/local/Cellar/openvpn/2.4.6/sbin/openvpn"
-	// ovpnFile := "/Users/qifan/Desktop/ProtonVPN config/ProtonVPN_server_configs_UDP/us-va-110.protonvpn.com.udp1194.ovpn"
-	// passFile := "/Users/qifan/pass"
-	// ovpnCmd := exec.Command(ovpnBin, op1, ovpnFile, op2, passFile)
-
-	// ok := runCmdTimeout(ovpnCmd, 10)
-	// fmt.Println(ok)
-
 	bin = "/usr/local/Cellar/openvpn/2.4.6/sbin/openvpn"
-	sfolder = "/Users/qifan/vpngate_config/20181013 154623"
-	tfolder = "/Users/qifan/vpngate_config/20181013 154623/validated"
+	sfolder = "/Users/qifan/vpngate_config/20181020 134841"
+	tfolder = "/Users/qifan/vpngate_config/20181020 134841/validated"
 	pwd = "/Users/qifan/pass"
 	pflag = false
 	timeout = time.Duration(15)
@@ -56,12 +54,11 @@ func main() {
 	fl := getFiles(sfolder)
 	size := len(fl)
 
-	ic := make(chan *OvpnFile, size)
-	oc := make(chan *OvpnFile, size)
+	ic := make(chan OvpnFile, size)
+	oc := make(chan OvpnFileOutput, size)
 
 	for _, f := range fl {
-		fmt.Println(f.name)
-		ic <- &f
+		ic <- f
 	}
 
 	close(ic)
@@ -72,8 +69,9 @@ func main() {
 
 	for i := 0; i < cap(oc); i++ {
 		o := <-oc
-		fmt.Println(o.name)
-		o.copy()
+		if o.ok {
+			o.ofile.copy()
+		}
 	}
 
 	fmt.Println("Done")
@@ -81,7 +79,7 @@ func main() {
 
 func cleanFolder() {
 	os.RemoveAll(tfolder)
-	os.Mkdir(tfolder, os.ModeDir)
+	os.Mkdir(tfolder, 0700)
 }
 
 func getFiles(folder string) (fl []OvpnFile) {
@@ -100,7 +98,6 @@ func getFiles(folder string) (fl []OvpnFile) {
 }
 
 func (of OvpnFile) composeCmd() (cmd *exec.Cmd) {
-	fmt.Println(of.path)
 	if pflag {
 		cmd = exec.Command(bin, op1, of.path, op2, pwd)
 	} else {
@@ -111,7 +108,7 @@ func (of OvpnFile) composeCmd() (cmd *exec.Cmd) {
 
 func (of OvpnFile) copy() {
 	d, _ := ioutil.ReadFile(of.path)
-	ioutil.WriteFile(filepath.Join(tfolder, of.name), d, 0644)
+	ioutil.WriteFile(filepath.Join(tfolder, of.name), d, 0700)
 }
 
 func runCmdTimeout(cmd *exec.Cmd, timeout time.Duration) (ok bool) {
@@ -129,17 +126,15 @@ func runCmdTimeout(cmd *exec.Cmd, timeout time.Duration) (ok bool) {
 		cmd.Process.Kill()
 		ok = false
 	}
-	fmt.Println(ok)
 	return
 }
 
-func process(inputc <-chan *OvpnFile, outputc chan<- *OvpnFile) {
+func process(inputc <-chan OvpnFile, outputc chan<- OvpnFileOutput) {
 	for i := range inputc {
-		//outputc <- runCmdTimeout(i, timeout)
-		cmd := i.composeCmd()
-		ok := runCmdTimeout(cmd, timeout)
-		if ok {
-			outputc <- i
-		}
+		outputc <- OvpnFileOutput{runCmdTimeout(i.composeCmd(), timeout), i}
 	}
+}
+
+func parseJSON()(){
+	
 }
