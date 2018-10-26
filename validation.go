@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -28,6 +29,7 @@ type CmdOutput struct {
 	err  error
 }
 
+const configFile = "config.json"
 const op1 = "--config"
 const op2 = "--auth-user-pass"
 
@@ -35,19 +37,12 @@ var bin string
 var sfolder string
 var tfolder string
 var pwd string
-var pflag bool
 var timeout time.Duration
 var thread int
 
 func main() {
 
-	bin = "/usr/local/Cellar/openvpn/2.4.6/sbin/openvpn"
-	sfolder = "/Users/qifan/vpngate_config/20181020 134841"
-	tfolder = "/Users/qifan/vpngate_config/20181020 134841/validated"
-	pwd = "/Users/qifan/pass"
-	pflag = false
-	timeout = time.Duration(15)
-	thread = 10
+	bin, sfolder, tfolder, pwd, timeout, thread = parseJSON()
 
 	cleanFolder()
 
@@ -98,7 +93,7 @@ func getFiles(folder string) (fl []OvpnFile) {
 }
 
 func (of OvpnFile) composeCmd() (cmd *exec.Cmd) {
-	if pflag {
+	if pwd == "" {
 		cmd = exec.Command(bin, op1, of.path, op2, pwd)
 	} else {
 		cmd = exec.Command(bin, of.path)
@@ -131,10 +126,31 @@ func runCmdTimeout(cmd *exec.Cmd, timeout time.Duration) (ok bool) {
 
 func process(inputc <-chan OvpnFile, outputc chan<- OvpnFileOutput) {
 	for i := range inputc {
-		outputc <- OvpnFileOutput{runCmdTimeout(i.composeCmd(), timeout), i}
+		c := i.composeCmd()
+		ok := runCmdTimeout(c, timeout)
+		outputc <- OvpnFileOutput{ok, i}
 	}
 }
 
-func parseJSON()(){
-	
+func parseJSON() (bin string, sfolder string, tfolder string, pwd string, timeout time.Duration, thread int) {
+	m := make(map[string]interface{})
+	path, _ := filepath.Abs(configFile)
+	b, _ := ioutil.ReadFile(path)
+	json.Unmarshal(b, &m)
+	bin = m["openvpn"].(string)
+	sfolder = m["source folder"].(string)
+	tfolder = m["target folder"].(string)
+	pwd = m["password file"].(string)
+	timeout = time.Duration(m["timeout"].(float64)) * time.Second
+	thread = int(m["thread"].(float64))
+	return
 }
+
+// {
+//     "openvpn":"/usr/local/Cellar/openvpn/2.4.6/sbin/openvpn",
+//     "source folder":"/Users/qifan/Desktop/ProtonVPN config",
+//     "target folder":"/Users/qifan/Desktop/ProtonVPN config/validated",
+//     "password file":"/Users/qifan/pass",
+//     "tiemout":10,
+//     "thread":10
+// }
