@@ -42,7 +42,7 @@ var thread int
 
 func main() {
 
-	bin, sfolder, tfolder, pwd, timeout, thread = parseJSON()
+	parseJSON()
 
 	cleanFolder()
 
@@ -58,18 +58,22 @@ func main() {
 
 	close(ic)
 
+	fmt.Println("In progress...")
+
 	for w := 0; w < thread; w++ {
 		go process(ic, oc)
 	}
 
+	var t int
 	for i := 0; i < cap(oc); i++ {
 		o := <-oc
 		if o.ok {
+			t++
 			o.ofile.copy()
 		}
 	}
 
-	fmt.Println("Done")
+	fmt.Printf("%d files are valid", t)
 }
 
 func cleanFolder() {
@@ -93,7 +97,7 @@ func getFiles(folder string) (fl []OvpnFile) {
 }
 
 func (of OvpnFile) composeCmd() (cmd *exec.Cmd) {
-	if pwd == "" {
+	if pwd != "" {
 		cmd = exec.Command(bin, op1, of.path, op2, pwd)
 	} else {
 		cmd = exec.Command(bin, of.path)
@@ -106,7 +110,7 @@ func (of OvpnFile) copy() {
 	ioutil.WriteFile(filepath.Join(tfolder, of.name), d, 0700)
 }
 
-func runCmdTimeout(cmd *exec.Cmd, timeout time.Duration) (ok bool) {
+func runCmdTimeout(cmd *exec.Cmd) (ok bool) {
 	cOutput := make(chan CmdOutput)
 	go func() {
 		o, e := cmd.Output()
@@ -127,12 +131,12 @@ func runCmdTimeout(cmd *exec.Cmd, timeout time.Duration) (ok bool) {
 func process(inputc <-chan OvpnFile, outputc chan<- OvpnFileOutput) {
 	for i := range inputc {
 		c := i.composeCmd()
-		ok := runCmdTimeout(c, timeout)
+		ok := runCmdTimeout(c)
 		outputc <- OvpnFileOutput{ok, i}
 	}
 }
 
-func parseJSON() (bin string, sfolder string, tfolder string, pwd string, timeout time.Duration, thread int) {
+func parseJSON() {
 	m := make(map[string]interface{})
 	path, _ := filepath.Abs(configFile)
 	b, _ := ioutil.ReadFile(path)
@@ -141,16 +145,7 @@ func parseJSON() (bin string, sfolder string, tfolder string, pwd string, timeou
 	sfolder = m["source folder"].(string)
 	tfolder = m["target folder"].(string)
 	pwd = m["password file"].(string)
-	timeout = time.Duration(m["timeout"].(float64)) * time.Second
+	timeout = time.Duration(m["timeout"].(float64))
 	thread = int(m["thread"].(float64))
 	return
 }
-
-// {
-//     "openvpn":"/usr/local/Cellar/openvpn/2.4.6/sbin/openvpn",
-//     "source folder":"/Users/qifan/Desktop/ProtonVPN config",
-//     "target folder":"/Users/qifan/Desktop/ProtonVPN config/validated",
-//     "password file":"/Users/qifan/pass",
-//     "tiemout":10,
-//     "thread":10
-// }
