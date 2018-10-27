@@ -74,6 +74,7 @@ func main() {
 	}
 
 	fmt.Printf("%d files are valid", t)
+	fmt.Println()
 }
 
 func cleanFolder() {
