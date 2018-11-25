@@ -42,7 +42,13 @@ var thread int
 
 func main() {
 
-	parseJSON()
+	arg := os.Args
+
+	if len(arg) == 1 {
+		parseJSON(configFile)
+	}else{
+		parseJSON(arg[1])
+	}
 
 	cleanFolder()
 
@@ -137,9 +143,9 @@ func process(inputc <-chan OvpnFile, outputc chan<- OvpnFileOutput) {
 	}
 }
 
-func parseJSON() {
+func parseJSON(cfilename string) {
 	m := make(map[string]interface{})
-	path, _ := filepath.Abs(configFile)
+	path, _ := filepath.Abs(cfilename)
 	b, _ := ioutil.ReadFile(path)
 	json.Unmarshal(b, &m)
 	bin = m["openvpn"].(string)
