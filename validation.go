@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	//"gopkg.in/cheggaaa/pb.v1"
 )
 
 // OvpnFile is the openvpn file struct
@@ -46,7 +47,7 @@ func main() {
 
 	if len(arg) == 1 {
 		parseJSON(configFile)
-	}else{
+	} else {
 		parseJSON(arg[1])
 	}
 
@@ -63,6 +64,8 @@ func main() {
 	}
 
 	close(ic)
+
+	//var bar = pb.StartNew(size)
 
 	fmt.Println("In progress...")
 
@@ -81,6 +84,8 @@ func main() {
 
 	fmt.Printf("%d files are valid", t)
 	fmt.Println()
+
+	//bar.FinishPrint(string(t) + " files are valid")
 }
 
 func cleanFolder() {
@@ -140,6 +145,7 @@ func process(inputc <-chan OvpnFile, outputc chan<- OvpnFileOutput) {
 		c := i.composeCmd()
 		ok := runCmdTimeout(c)
 		outputc <- OvpnFileOutput{ok, i}
+		//bar.Increment()
 	}
 }
 
