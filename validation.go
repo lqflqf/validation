@@ -78,9 +78,11 @@ func main() {
 	var t int
 	for i := 0; i < cap(oc); i++ {
 		o := <-oc
-		if o.ok {
-			t++
-			o.ofile.copy()
+		if o.ok {		
+			e := o.ofile.copy()
+			if e == nil {
+				t++
+			}
 		}
 	}
 
@@ -118,9 +120,9 @@ func (of OvpnFile) composeCmd() (cmd *exec.Cmd) {
 	return
 }
 
-func (of OvpnFile) copy() {
+func (of OvpnFile) copy() error{
 	d, _ := ioutil.ReadFile(of.path)
-	ioutil.WriteFile(filepath.Join(tfolder, of.name), d, 0700)
+	return ioutil.WriteFile(filepath.Join(tfolder, of.name), d, 0700)
 }
 
 func runCmdTimeout(cmd *exec.Cmd) (ok bool) {
