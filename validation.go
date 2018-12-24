@@ -54,7 +54,7 @@ func main() {
 
 	cleanFolder()
 
-	fl := getFiles(sfolder)
+	fl := removeDup(getFiles(sfolder))
 	size := len(fl)
 
 	ic := make(chan OvpnFile, size)
@@ -108,6 +108,19 @@ func getFiles(folder string) (fl []OvpnFile) {
 		return nil
 	}
 	filepath.Walk(folder, wf)
+	return
+}
+
+func removeDup(dl []OvpnFile) (ndl []OvpnFile) {
+	l := len(dl)
+	m := make(map[string]bool)
+	for i := 0; i < l; i++ {
+		_, ok := m[dl[i].name]
+		if ok == false {
+			m[dl[i].name] = true
+			ndl = append(ndl, dl[i])
+		}
+	}
 	return
 }
 
