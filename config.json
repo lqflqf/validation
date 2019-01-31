@@ -1,0 +1,8 @@
+{
+    "openvpn":"/usr/local/Cellar/openvpn/2.4.6/sbin/openvpn",
+    "source folder":"/Users/user1/vpngate_config",
+    "target folder":"/Users/user2/vpngate_config/validated",
+    "password file":"",
+    "timeout":15,
+    "thread":10
+}

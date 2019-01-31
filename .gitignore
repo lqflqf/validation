@@ -1,5 +1,4 @@
 .DS_Store
-config.json
 dummy.go
 Gopkg.lock
 Gopkg.toml
