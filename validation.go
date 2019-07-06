@@ -38,6 +38,7 @@ const op2 = "--auth-user-pass"
 var bin string
 var sfolder string
 var tfolder string
+var validstr string
 var pwd string
 var timeout time.Duration
 var thread int
@@ -148,7 +149,7 @@ func runCmdTimeout(cmd *exec.Cmd) (ok bool) {
 	select {
 	case o := <-cOutput:
 		sl := strings.Split(o.data, "\n")
-		ok = strings.Contains(sl[cap(sl)-3], "Cannot allocate TUN/TAP dev dynamically")
+		ok = strings.Contains(sl[cap(sl)-3], validstr)
 	case <-time.After(timeout * time.Second):
 		cmd.Process.Kill()
 		ok = false
@@ -174,6 +175,7 @@ func parseJSON(cfilename string) {
 	bin = m["openvpn"].(string)
 	sfolder = m["source folder"].(string)
 	tfolder = m["target folder"].(string)
+	validstr = m["valid string"].(string)
 	pwd = m["password file"].(string)
 	timeout = time.Duration(m["timeout"].(float64))
 	thread = int(m["thread"].(float64))
