@@ -175,7 +175,11 @@ func parseJSON(cfilename string) {
 	bin = m["openvpn"].(string)
 	sfolder = m["source folder"].(string)
 	tfolder = m["target folder"].(string)
-	validstr = m["valid string"].(string)
+	if lvalidstr, ok := m["valid string"].(string); ok {
+		validstr = lvalidstr
+	} else {
+		validstr = "Cannot allocate TUN/TAP dev dynamically"
+	}
 	pwd = m["password file"].(string)
 	timeout = time.Duration(m["timeout"].(float64))
 	thread = int(m["thread"].(float64))
