@@ -17,6 +17,7 @@ import (
 type OvpnFile struct {
 	path string
 	name string
+	modtime time.Time
 }
 
 // OvpnFileOutput is the openvpn file output struct
@@ -103,7 +104,9 @@ func getFiles(folder string) (fl []OvpnFile) {
 		if !info.IsDir() {
 			n := strings.Split(info.Name(), ".")
 			if n[cap(n)-1] == "ovpn" {
-				fl = append(fl, OvpnFile{path, info.Name()})
+				filestat, _ := os.Stat(path)
+				modtime := filestat.ModTime()
+				fl = append(fl, OvpnFile{path, info.Name(), modtime})
 			}
 		}
 		return nil
@@ -114,13 +117,19 @@ func getFiles(folder string) (fl []OvpnFile) {
 
 func removeDup(dl []OvpnFile) (ndl []OvpnFile) {
 	l := len(dl)
-	m := make(map[string]bool)
+	m := make(map[string]OvpnFile)
 	for i := 0; i < l; i++ {
-		_, ok := m[dl[i].name]
+		ovpnfile, ok := m[dl[i].name]
 		if ok == false {
-			m[dl[i].name] = true
-			ndl = append(ndl, dl[i])
+			m[dl[i].name] = dl[i]
+		} else {
+			if ovpnfile.modtime.Before(dl[i].modtime) {
+				m[dl[i].name] = dl[i]
+			}
 		}
+	}
+	for _, v := range m {
+		ndl = append(ndl, v)
 	}
 	return
 }
