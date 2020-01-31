@@ -19,9 +19,8 @@ import (
 type OvpnFile struct {
 	path    string
 	name    string
-	country string
-	score   int
 	modtime time.Time
+	extra ExtracInfo
 }
 
 // OvpnFileOutput is the openvpn file output struct
@@ -36,10 +35,11 @@ type CmdOutput struct {
 	err  error
 }
 
-//CountryScore struct
-type CountryScore struct {
+//ExtracInfo struct
+type ExtracInfo struct {
 	country string
 	score   int
+	connectInfo string
 }
 
 const configFile = "config.json"
@@ -65,8 +65,8 @@ func main() {
 	}
 
 	cleanFolder()
-
-	fl := removeDup(getFiles(sfolder))
+	fl := getFiles(sfolder)
+	fl = removeDup(fl)
 	size := len(fl)
 
 	ic := make(chan OvpnFile, size)
@@ -99,7 +99,7 @@ func main() {
 
 	//sort by score
 	sort.Slice(ofl, func(i, j int) bool {
-		return ofl[i].score > ofl[j].score
+		return ofl[i].extra.score > ofl[j].extra.score
 	})
 
 	//renanem and copy
@@ -107,7 +107,7 @@ func main() {
 	var t int
 	for i, f := range ofl {
 		strRank := fmt.Sprintf(digitFmt, i+1)
-		f.name = strRank + "_" + f.country + ".ovpn"
+		f.name = strRank + "_" + f.extra.country + ".ovpn"
 		e := f.copy()
 		if e == nil {
 			t++
@@ -132,8 +132,7 @@ func getFiles(folder string) (fl []OvpnFile) {
 			if n[cap(n)-1] == "ovpn" {
 				filestat, _ := os.Stat(path)
 				modtime := filestat.ModTime()
-				countryScore := getCountryScore(info.Name())
-				fl = append(fl, OvpnFile{path, info.Name(), countryScore.country, countryScore.score, modtime})
+				fl = append(fl, OvpnFile{path, info.Name(), modtime, getExtrainfo(info.Name())})
 			}
 		}
 		return nil
@@ -146,12 +145,12 @@ func removeDup(dl []OvpnFile) (ndl []OvpnFile) {
 	l := len(dl)
 	m := make(map[string]OvpnFile)
 	for i := 0; i < l; i++ {
-		ovpnfile, ok := m[dl[i].name]
+		ovpnfile, ok := m[dl[i].extra.connectInfo]
 		if ok == false {
-			m[dl[i].name] = dl[i]
+			m[dl[i].extra.connectInfo] = dl[i]
 		} else {
 			if ovpnfile.modtime.Before(dl[i].modtime) {
-				m[dl[i].name] = dl[i]
+				m[dl[i].extra.connectInfo] = dl[i]
 			}
 		}
 	}
@@ -221,12 +220,12 @@ func parseJSON(cfilename string) {
 	thread = int(m["thread"].(float64))
 }
 
-func getCountryScore(fileName string) CountryScore {
+func getExtrainfo(fileName string) ExtracInfo {
 	absName := strings.Split(fileName, ".ovpn")[0]
 	nl := strings.Split(absName, "_")
-	strScore := nl[len(nl)-1]
+	strScore := nl[4]
 	score, _ := strconv.Atoi(strScore)
-	return CountryScore{nl[0], score}
+	return ExtracInfo{nl[0], score, nl[1] + "_"+ nl[2] + "_" + nl[3]}
 }
 
 func getDigitNumber(fileNo int) int {
