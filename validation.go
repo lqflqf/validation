@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,8 +17,10 @@ import (
 
 // OvpnFile is the openvpn file struct
 type OvpnFile struct {
-	path string
-	name string
+	path    string
+	name    string
+	country string
+	score   int
 	modtime time.Time
 }
 
@@ -30,6 +34,12 @@ type OvpnFileOutput struct {
 type CmdOutput struct {
 	data string
 	err  error
+}
+
+//CountryScore struct
+type CountryScore struct {
+	country string
+	score   int
 }
 
 const configFile = "config.json"
@@ -77,14 +87,29 @@ func main() {
 		go process(ic, oc, bar)
 	}
 
-	var t int
+	// find out working files
+	ofl := make([]OvpnFile, 0)
+
 	for i := 0; i < cap(oc); i++ {
 		o := <-oc
-		if o.ok {		
-			e := o.ofile.copy()
-			if e == nil {
-				t++
-			}
+		if o.ok {
+			ofl = append(ofl, o.ofile)
+		}
+	}
+
+	//sort by score
+	sort.Slice(ofl, func(i, j int) bool {
+		return ofl[i].score > ofl[j].score
+	})
+
+	//renanem and copy
+
+	var t int
+	for i, f := range ofl {
+		f.rename(i + 1)
+		e := f.copy()
+		if e == nil {
+			t++
 		}
 	}
 
@@ -106,7 +131,8 @@ func getFiles(folder string) (fl []OvpnFile) {
 			if n[cap(n)-1] == "ovpn" {
 				filestat, _ := os.Stat(path)
 				modtime := filestat.ModTime()
-				fl = append(fl, OvpnFile{path, info.Name(), modtime})
+				countryScore := getCountryScore(info.Name())
+				fl = append(fl, OvpnFile{path, info.Name(), countryScore.country, countryScore.score, modtime})
 			}
 		}
 		return nil
@@ -143,7 +169,12 @@ func (of OvpnFile) composeCmd() (cmd *exec.Cmd) {
 	return
 }
 
-func (of OvpnFile) copy() error{
+func (of OvpnFile) rename(rank int) {
+	strRank := strconv.Itoa(rank)
+	of.name = strRank + "_" + of.country + ".ovpn"
+}
+
+func (of OvpnFile) copy() error {
 	d, _ := ioutil.ReadFile(of.path)
 	return ioutil.WriteFile(filepath.Join(tfolder, of.name), d, 0700)
 }
@@ -192,5 +223,12 @@ func parseJSON(cfilename string) {
 	pwd = m["password file"].(string)
 	timeout = time.Duration(m["timeout"].(float64))
 	thread = int(m["thread"].(float64))
-	return
+}
+
+func getCountryScore(fileName string) CountryScore {
+	absName := strings.Split(fileName, ".")[1]
+	nl := strings.Split(absName, "_")
+	strScore := nl[len(nl)-1]
+	score, _ := strconv.Atoi(strScore)
+	return CountryScore{nl[0], score}
 }

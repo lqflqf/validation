@@ -4,3 +4,4 @@ Gopkg.lock
 Gopkg.toml
 vendor
 .vscode
+config.json
