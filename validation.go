@@ -103,10 +103,11 @@ func main() {
 	})
 
 	//renanem and copy
-
+	digitFmt := "%0" + strconv.Itoa(getDigitNumber(len(ofl))) + "d"
 	var t int
 	for i, f := range ofl {
-		f.rename(i + 1)
+		strRank := fmt.Sprintf(digitFmt, i+1)
+		f.name = strRank + "_" + f.country + ".ovpn"
 		e := f.copy()
 		if e == nil {
 			t++
@@ -169,11 +170,6 @@ func (of OvpnFile) composeCmd() (cmd *exec.Cmd) {
 	return
 }
 
-func (of OvpnFile) rename(rank int) {
-	strRank := strconv.Itoa(rank)
-	of.name = strRank + "_" + of.country + ".ovpn"
-}
-
 func (of OvpnFile) copy() error {
 	d, _ := ioutil.ReadFile(of.path)
 	return ioutil.WriteFile(filepath.Join(tfolder, of.name), d, 0700)
@@ -226,9 +222,14 @@ func parseJSON(cfilename string) {
 }
 
 func getCountryScore(fileName string) CountryScore {
-	absName := strings.Split(fileName, ".")[1]
+	absName := strings.Split(fileName, ".ovpn")[0]
 	nl := strings.Split(absName, "_")
 	strScore := nl[len(nl)-1]
 	score, _ := strconv.Atoi(strScore)
 	return CountryScore{nl[0], score}
+}
+
+func getDigitNumber(fileNo int) int {
+	strFileNo := strconv.Itoa(fileNo)
+	return len(strFileNo)
 }
