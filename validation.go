@@ -11,8 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	pb "gopkg.in/cheggaaa/pb.v1"
+	"github.com/cheggaaa/pb"
 )
 
 // OvpnFile is the openvpn file struct
