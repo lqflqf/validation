@@ -114,6 +114,7 @@ func main() {
 	}
 
 	bar.Finish()
+	fmt.Printf("Validation done!")
 	fmt.Printf("%d files are valid", t)
 	fmt.Println()
 }
