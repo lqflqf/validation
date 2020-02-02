@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"gopkg.in/cheggaaa/pb.v1"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -11,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"github.com/cheggaaa/pb"
 )
 
 // OvpnFile is the openvpn file struct
@@ -19,7 +19,7 @@ type OvpnFile struct {
 	path    string
 	name    string
 	modtime time.Time
-	extra ExtracInfo
+	extra   ExtracInfo
 }
 
 // OvpnFileOutput is the openvpn file output struct
@@ -36,8 +36,8 @@ type CmdOutput struct {
 
 //ExtracInfo struct
 type ExtracInfo struct {
-	country string
-	score   int
+	country     string
+	score       int
 	connectInfo string
 }
 
@@ -77,7 +77,7 @@ func main() {
 
 	close(ic)
 
-	var bar = pb.New(size)
+	bar := pb.New(size)
 
 	fmt.Println("In progress...")
 	fmt.Println()
@@ -113,8 +113,7 @@ func main() {
 		}
 	}
 
-	bar.Finish()
-	fmt.Printf("Validation done!")
+	bar.FinishPrint("Validation done!")
 	fmt.Printf("%d files are valid", t)
 	fmt.Println()
 }
@@ -225,7 +224,7 @@ func getExtrainfo(fileName string) ExtracInfo {
 	nl := strings.Split(absName, "_")
 	strScore := nl[4]
 	score, _ := strconv.Atoi(strScore)
-	return ExtracInfo{nl[0], score, nl[1] + "_"+ nl[2] + "_" + nl[3]}
+	return ExtracInfo{nl[0], score, nl[1] + "_" + nl[2] + "_" + nl[3]}
 }
 
 func getDigitNumber(fileNo int) int {
