@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"gopkg.in/cheggaaa/pb.v1"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,7 +33,7 @@ type CmdOutput struct {
 	err  error
 }
 
-//ExtracInfo struct
+// ExtracInfo struct
 type ExtracInfo struct {
 	country     string
 	score       int
@@ -44,6 +43,7 @@ type ExtracInfo struct {
 const configFile = "config.json"
 const op1 = "--config"
 const op2 = "--auth-user-pass"
+const op3 = "--data-ciphers"
 
 var bin string
 var sfolder string
@@ -52,6 +52,7 @@ var validstr string
 var pwd string
 var timeout time.Duration
 var thread int
+var ciphers string
 
 func main() {
 
@@ -124,8 +125,7 @@ func cleanFolder() {
 }
 
 func getFiles(folder string) (fl []OvpnFile) {
-	var wf filepath.WalkFunc
-	wf = func(path string, info os.FileInfo, err error) error {
+	var wf filepath.WalkFunc = func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
 			n := strings.Split(info.Name(), ".")
 			if n[cap(n)-1] == "ovpn" {
@@ -145,7 +145,7 @@ func removeDup(dl []OvpnFile) (ndl []OvpnFile) {
 	m := make(map[string]OvpnFile)
 	for i := 0; i < l; i++ {
 		ovpnfile, ok := m[dl[i].extra.connectInfo]
-		if ok == false {
+		if !ok {
 			m[dl[i].extra.connectInfo] = dl[i]
 		} else {
 			if ovpnfile.modtime.Before(dl[i].modtime) {
@@ -161,16 +161,16 @@ func removeDup(dl []OvpnFile) (ndl []OvpnFile) {
 
 func (of OvpnFile) composeCmd() (cmd *exec.Cmd) {
 	if pwd != "" {
-		cmd = exec.Command(bin, op1, of.path, op2, pwd)
+		cmd = exec.Command(bin, op1, of.path, op2, pwd, op3, ciphers)
 	} else {
-		cmd = exec.Command(bin, of.path)
+		cmd = exec.Command(bin, op1, of.path, op3, ciphers)
 	}
 	return
 }
 
 func (of OvpnFile) copy() error {
-	d, _ := ioutil.ReadFile(of.path)
-	return ioutil.WriteFile(filepath.Join(tfolder, of.name), d, 0700)
+	d, _ := os.ReadFile(of.path)
+	return os.WriteFile(filepath.Join(tfolder, of.name), d, 0700)
 }
 
 func runCmdTimeout(cmd *exec.Cmd) (ok bool) {
@@ -204,7 +204,7 @@ func process(inputc <-chan OvpnFile, outputc chan<- OvpnFileOutput, pb *pb.Progr
 func parseJSON(cfilename string) {
 	m := make(map[string]interface{})
 	path, _ := filepath.Abs(cfilename)
-	b, _ := ioutil.ReadFile(path)
+	b, _ := os.ReadFile(path)
 	json.Unmarshal(b, &m)
 	bin = m["openvpn"].(string)
 	sfolder = m["source folder"].(string)
@@ -217,6 +217,7 @@ func parseJSON(cfilename string) {
 	pwd = m["password file"].(string)
 	timeout = time.Duration(m["timeout"].(float64))
 	thread = int(m["thread"].(float64))
+	ciphers = m["data-ciphers"].(string)
 }
 
 func getExtrainfo(fileName string) ExtracInfo {
