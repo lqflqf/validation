@@ -160,11 +160,17 @@ func removeDup(dl []OvpnFile) (ndl []OvpnFile) {
 }
 
 func (of OvpnFile) composeCmd() (cmd *exec.Cmd) {
+	args := []string{}
+	args = append(args, op1, of.path)
 	if pwd != "" {
-		cmd = exec.Command(bin, op1, of.path, op2, pwd, op3, ciphers)
-	} else {
-		cmd = exec.Command(bin, op1, of.path, op3, ciphers)
+		args = append(args, op2, pwd)
 	}
+	if ciphers != "" {
+		args = append(args, op3, ciphers)
+	}
+
+	cmd = exec.Command(bin, args...)
+
 	return
 }
 
